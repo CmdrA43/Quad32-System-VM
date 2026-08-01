@@ -194,49 +194,40 @@ struct quad32VM{
 					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
-				case OP_MOV:{
-					uint8_t reg_data = r0;
-					uint8_t reg_dest = r1;
-					registers[reg_dest] = registers[reg_data];
-					break;
-				}
-				case OP_CMP:{
+				case OP_JE:{
 					uint8_t reg_src1 = r0;
 					uint8_t reg_src2 = r1;
-					zero_flag = ((registers[reg_src1] - registers[reg_src2]) == 0) ? 1 : 0;
-					break;
-				}
-				case OP_JNZ:{
-					uint8_t reg_dest = r0;
-					if(!zero_flag){
-						instruction_ptr = registers[reg_dest];
-					}
-					break;
-				}
-				case OP_JZ:{
-					uint8_t reg_dest = r0;
-					if(zero_flag){
-						instruction_ptr = registers[reg_dest];
+					uint8_t reg_true = r2;
+					uint8_t reg_false = r3;
+					if(static_cast<int32_t>(registers[reg_src1]) == static_cast<int32_t>(registers[reg_src2])){
+						instruction_ptr = registers[reg_true];
+					} else {
+						instruction_ptr = registers[reg_false];
 					}
 					break;
 				}
 				case OP_JL:{
 					uint8_t reg_src1 = r0;
 					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
+					uint8_t reg_true = r2;
+					uint8_t reg_false = r3;
 					if(static_cast<int32_t>(registers[reg_src1]) < static_cast<int32_t>(registers[reg_src2])){
-						instruction_ptr = registers[reg_dest];
+						instruction_ptr = registers[reg_true];
+					} else {
+						instruction_ptr = registers[reg_false];
 					}
 					break;
 				}
 				case OP_JG:{
 					uint8_t reg_src1 = r0;
 					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
+					uint8_t reg_true = r2;
+					uint8_t reg_false = r3;
 					if(static_cast<int32_t>(registers[reg_src1]) > static_cast<int32_t>(registers[reg_src2])){
-						instruction_ptr = registers[reg_dest];
+						instruction_ptr = registers[reg_true];
+					} else {
+						instruction_ptr = registers[reg_false];
 					}
-					
 					break;
 				}
 				case OP_NOP:{
