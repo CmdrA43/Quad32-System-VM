@@ -3,7 +3,7 @@
 #include <iostream>
 #include <iomanip>
 
-ARRAY_SIZE = 10;
+const uint32_t ARRAY_SIZE = 10;
 
 #define MAKE_INS(op, r0, r1, r2, r3) \
     (((uint32_t)(op)  & 0xFF) << 20) | \
@@ -105,10 +105,10 @@ struct quad32VM{
 	 * R0 is dedicated zero value
 	 * R1 is dedicated one value
 	 * */
-	void Run(const uint32_t& bytecode[ARRAY_SIZE]){
+	void Run(uint32_t (&bytecode)[ARRAY_SIZE]){
 		registers[0] = 0;
 		registers[1] = 1;
-		while (instruction_ptr < bytecode.size()){
+		while (instruction_ptr < ARRAY_SIZE - 1){
 			uint32_t instruction = bytecode[instruction_ptr++];
 			uint16_t opcode = (instruction >> 20) & 0xFFF;
 			uint8_t r0 = (instruction >> 15) & 0x1F;
@@ -136,7 +136,6 @@ struct quad32VM{
 					uint8_t reg_src2 = r1;
 					uint8_t reg_dest = r2;
 					registers[reg_dest] = (registers[reg_src1] + registers[reg_src2]);
-					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
 				case OP_SUB:{
@@ -144,14 +143,12 @@ struct quad32VM{
 					uint8_t reg_src2 = r1;
 					uint8_t reg_dest = r2;
 					registers[reg_dest] = (registers[reg_src1] - registers[reg_src2]);
-					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
 				case OP_NOT:{
 					uint8_t reg_src1 = r0;
 					uint8_t reg_dest = r1;
 					registers[reg_dest] = ~registers[reg_src1];
-					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
 				case OP_AND:{
@@ -159,7 +156,6 @@ struct quad32VM{
 					uint8_t reg_src2 = r1;
 					uint8_t reg_dest = r2;
 					registers[reg_dest] = (registers[reg_src1] & registers[reg_src2]);
-					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
 				case OP_OR:{
@@ -167,7 +163,6 @@ struct quad32VM{
 					uint8_t reg_src2 = r1;
 					uint8_t reg_dest = r2;
 					registers[reg_dest] = (registers[reg_src1] | registers[reg_src2]);
-					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
 				case OP_XOR:{
@@ -175,7 +170,6 @@ struct quad32VM{
 					uint8_t reg_src2 = r1;
 					uint8_t reg_dest = r2;
 					registers[reg_dest] = (registers[reg_src1] ^ registers[reg_src2]);
-					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
 				case OP_SHL:{
@@ -183,7 +177,6 @@ struct quad32VM{
 					uint8_t reg_src2 = r1;
 					uint8_t reg_dest = r2;
 					registers[reg_dest] = (registers[reg_src1] << registers[reg_src2]);
-					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
 				case OP_SHR:{
@@ -191,7 +184,6 @@ struct quad32VM{
 					uint8_t reg_src2 = r1;
 					uint8_t reg_dest = r2;
 					registers[reg_dest] = (registers[reg_src1] >> registers[reg_src2]);
-					zero_flag = (registers[reg_dest] == 0x0000) ? 1 : 0;
 					break;
 				}
 				case OP_JE:{
