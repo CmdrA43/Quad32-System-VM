@@ -18,25 +18,29 @@ enum Opcode : uint16_t {
 	OP_STORE = 0x002, // reg src, reg ptr, reg offset (from register to ram)
 	OP_ADD = 0x003, // reg src1, reg src2, reg dest
 	OP_SUB = 0x004, // reg src1, reg src2, reg dest
-	OP_NOT = 0x005, // reg src1, reg dest
-	OP_AND = 0x006, // reg src1, reg src2, reg dest
-	OP_OR = 0x007, // reg src1, reg src2, reg dest
-	OP_XOR = 0x008, // reg src1, reg src2, reg dest
-	OP_SHL = 0x009, // reg src1, reg src2, reg dest
-	OP_SHR = 0x00A, // reg src1, reg src2, reg dest
-	OP_JE = 0x00B, // reg src1, reg src2, reg jump_true, reg jump_false
-	OP_JL = 0x00C, // reg src1, reg src2, reg jump_true, reg jump_false
-	OP_JG = 0x00D, // reg src1, reg src2, reg jump_true, reg jump_false
-	OP_NOP = 0x00E, // nop
-	OP_PUSH = 0x00F, // reg data
-	OP_POP = 0x010, // reg dest
-	OP_PUSHR = 0x011, // reg rlow, reg rhigh
-	OP_POPR = 0x012, // reg rlow, reg rhigh
-	OP_CALL = 0x013, // reg dest
-	OP_RET = 0x014,
-	OP_GETPC = 0x015, // reg dest
-	OP_OUT = 0x016, // reg ptr, reg length, reg port
-	OP_IN = 0x017 // reg ptr, reg length, reg port
+	OP_MUL = 0x005, // reg src1, reg src2, reg dest
+	OP_ADDR = 0x006, // reg src1loc, reg src2loc, reg destloc, reg count
+	OP_SUBR = 0x007, // reg src1loc, reg src2loc, reg destloc, reg count
+	OP_MULR = 0x008, // reg src1loc, reg src2loc, reg destloc, reg count
+	OP_NOT = 0x009, // reg src1, reg dest
+	OP_AND = 0x00A, // reg src1, reg src2, reg dest
+	OP_OR = 0x00B, // reg src1, reg src2, reg dest
+	OP_XOR = 0x00C, // reg src1, reg src2, reg dest
+	OP_SHL = 0x00D, // reg src1, reg src2, reg dest
+	OP_SHR = 0x00E, // reg src1, reg src2, reg dest
+	OP_JE = 0x00F, // reg src1, reg src2, reg jump_true, reg jump_false
+	OP_JL = 0x010, // reg src1, reg src2, reg jump_true, reg jump_false
+	OP_JG = 0x011, // reg src1, reg src2, reg jump_true, reg jump_false
+	OP_NOP = 0x012, // nop
+	OP_PUSH = 0x013, // reg data
+	OP_POP = 0x014, // reg dest
+	OP_PUSHR = 0x015, // reg rlow, reg rhigh
+	OP_POPR = 0x016, // reg rlow, reg rhigh
+	OP_CALL = 0x017, // reg dest
+	OP_RET = 0x018,
+	OP_GETPC = 0x019, // reg dest
+	OP_OUT = 0x01A, // reg ptr, reg length, reg port
+	OP_IN = 0x01B // reg ptr, reg length, reg port
 };
 
 enum regCallConv : uint8_t{
@@ -114,6 +118,10 @@ struct quad32VM{
 			[OP_STORE] = &&lbl_store,
 			[OP_ADD] = &&lbl_add,
 			[OP_SUB] = &&lbl_sub,
+			[OP_MUL] = &&lbl_mul,
+			[OP_ADDR] = &&lbl_addr,
+			[OP_SUBR] = &&lbl_subr,
+			[OP_MULR] = &&lbl_mulr,
 			[OP_NOT] = &&lbl_not,
 			[OP_AND] = &&lbl_and,
 			[OP_OR] = &&lbl_or,
@@ -183,6 +191,81 @@ struct quad32VM{
 			uint8_t reg_src2 = r1;
 			uint8_t reg_dest = r2;
 			registers[reg_dest] = (registers[reg_src1] - registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_mul: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_dest = r2;
+			registers[reg_dest] = (registers[reg_src1] * registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_addr: {
+			uint8_t reg_src1loc = r0;
+			uint8_t reg_src2loc = r1;
+			uint8_t reg_destloc = r2;
+			uint8_t reg_count = r3;
+			
+			if (registers[reg_src1loc] + registers[reg_count] > 65536 || registers[reg_src2loc] + registers[reg_count] > 65536 || registers[reg_destloc] + registers[reg_count] > 65536) {
+				std::cerr << "VM MEMORY ACCESS OUT OF BOUNDS IN RANGE OP\n";
+				goto lbl_halt;
+			}
+			
+			const uint32_t* __restrict src1 = &memory[registers[reg_src1loc]];
+			const uint32_t* __restrict src2 = &memory[registers[reg_src2loc]];
+			uint32_t*       __restrict dest = &memory[registers[reg_destloc]];
+			
+			for(int i = 0; i < registers[reg_count]; i++){
+				dest[i] = src1[i] + src2[i];
+			}
+			
+			DISPATCH();
+		}
+		
+		lbl_subr: {
+			uint8_t reg_src1loc = r0;
+			uint8_t reg_src2loc = r1;
+			uint8_t reg_destloc = r2;
+			uint8_t reg_count = r3;
+			
+			if (registers[reg_src1loc] + registers[reg_count] > 65536 || registers[reg_src2loc] + registers[reg_count] > 65536 || registers[reg_destloc] + registers[reg_count] > 65536) {
+				std::cerr << "VM MEMORY ACCESS OUT OF BOUNDS IN RANGE OP\n";
+				goto lbl_halt;
+			}
+			
+			const uint32_t* __restrict src1 = &memory[registers[reg_src1loc]];
+			const uint32_t* __restrict src2 = &memory[registers[reg_src2loc]];
+			uint32_t*       __restrict dest = &memory[registers[reg_destloc]];
+			
+			for(int i = 0; i <= registers[reg_count]; i++){
+				dest[i] = src1[i] - src2[i];
+			}
+			
+			DISPATCH();
+		}
+		
+		lbl_mulr: {
+			uint8_t reg_src1loc = r0;
+			uint8_t reg_src2loc = r1;
+			uint8_t reg_destloc = r2;
+			uint8_t reg_count = r3;
+			
+			if (registers[reg_src1loc] + registers[reg_count] > 65536 || registers[reg_src2loc] + registers[reg_count] > 65536 || registers[reg_destloc] + registers[reg_count] > 65536) {
+				std::cerr << "VM MEMORY ACCESS OUT OF BOUNDS IN RANGE OP\n";
+				goto lbl_halt;
+			}
+			
+			const uint32_t* __restrict src1 = &memory[registers[reg_src1loc]];
+			const uint32_t* __restrict src2 = &memory[registers[reg_src2loc]];
+			uint32_t*       __restrict dest = &memory[registers[reg_destloc]];
+			
+			for(int i = 0; i <= registers[reg_count]; i++){
+				dest[i] = src1[i] * src2[i];
+			}
 			
 			DISPATCH();
 		}
