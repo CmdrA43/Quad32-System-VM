@@ -241,7 +241,7 @@ struct quad32VM{
 			const uint32_t* __restrict src2 = &memory[registers[reg_src2loc]];
 			uint32_t*       __restrict dest = &memory[registers[reg_destloc]];
 			
-			for(int i = 0; i <= registers[reg_count]; i++){
+			for(int i = 0; i < registers[reg_count]; i++){
 				dest[i] = src1[i] - src2[i];
 			}
 			
@@ -263,7 +263,7 @@ struct quad32VM{
 			const uint32_t* __restrict src2 = &memory[registers[reg_src2loc]];
 			uint32_t*       __restrict dest = &memory[registers[reg_destloc]];
 			
-			for(int i = 0; i <= registers[reg_count]; i++){
+			for(int i = 0; i < registers[reg_count]; i++){
 				dest[i] = src1[i] * src2[i];
 			}
 			
