@@ -108,245 +108,317 @@ struct quad32VM{
 	void Run(uint32_t (&bytecode)[ARRAY_SIZE]){
 		registers[0] = 0;
 		registers[1] = 1;
-		while (instruction_ptr < ARRAY_SIZE - 1){
-			uint32_t instruction = bytecode[instruction_ptr++];
-			uint16_t opcode = (instruction >> 20) & 0xFFF;
-			uint8_t r0 = (instruction >> 15) & 0x1F;
-			uint8_t r1 = (instruction >> 10) & 0x1F;
-			uint8_t r2 = (instruction >> 5) & 0x1F;
-			uint8_t r3 = instruction & 0x1F;
-			switch(opcode){
-				case OP_HALT:
+		static const void* dispatch_table[] = {
+			[OP_HALT] = &&lbl_halt,
+			[OP_LOAD] = &&lbl_load,
+			[OP_STORE] = &&lbl_store,
+			[OP_ADD] = &&lbl_add,
+			[OP_SUB] = &&lbl_sub,
+			[OP_NOT] = &&lbl_not,
+			[OP_AND] = &&lbl_and,
+			[OP_OR] = &&lbl_or,
+			[OP_XOR] = &&lbl_xor,
+			[OP_SHL] = &&lbl_shl,
+			[OP_SHR] = &&lbl_shr,
+			[OP_JE] = &&lbl_je,
+			[OP_JL] = &&lbl_jl,
+			[OP_JG] = &&lbl_jg,
+			[OP_NOP] = &&lbl_nop,
+			[OP_PUSH] = &&lbl_push,
+			[OP_POP] = &&lbl_pop,
+			[OP_PUSHR] = &&lbl_pushr,
+			[OP_POPR] = &&lbl_popr,
+			[OP_CALL] = &&lbl_call,
+			[OP_RET] = &&lbl_ret,
+			[OP_GETPC] = &&lbl_getpc,
+			[OP_OUT] = &&lbl_out,
+			[OP_IN] = &&lbl_in
+		};
+		
+		uint32_t instruction;
+		uint16_t opcode;
+		uint8_t r0, r1, r2, r3;
+		
+		#define DISPATCH() \
+			if(instruction_ptr >= ARRAY_SIZE) goto lbl_halt; \
+			registers[0] = 0; \
+			registers[1] = 1; \
+			instruction = bytecode[instruction_ptr++]; \
+			opcode = (instruction >> 20) & 0xFFF; \
+			r0 = (instruction >> 15) & 0x1F; \
+			r1 = (instruction >> 10) & 0x1F; \
+			r2 = (instruction >> 5) & 0x1F; \
+			r3 = instruction & 0x1F; \
+			goto *dispatch_table[opcode]
+			
+			DISPATCH();
+			
+		lbl_load: {
+			uint8_t dest_reg = r0;
+			uint8_t ram_src = r1;
+			registers[dest_reg] = memory[registers[ram_src]];
+			
+			DISPATCH();
+		}
+		
+		lbl_store: {
+			uint8_t reg_data = r0;
+			uint8_t ram_dest = r1;
+			memory[registers[ram_dest]] = registers[reg_data];
+			
+			DISPATCH();
+		}
+		
+		lbl_add: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_dest = r2;
+			registers[reg_dest] = (registers[reg_src1] + registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_sub: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_dest = r2;
+			registers[reg_dest] = (registers[reg_src1] - registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_not: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_dest = r1;
+			registers[reg_dest] = ~registers[reg_src1];
+			
+			DISPATCH();
+		}
+		
+		lbl_and: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_dest = r2;
+			registers[reg_dest] = (registers[reg_src1] & registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_or: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_dest = r2;
+			registers[reg_dest] = (registers[reg_src1] | registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_xor: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_dest = r2;
+			registers[reg_dest] = (registers[reg_src1] ^ registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_shl: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_dest = r2;
+			registers[reg_dest] = (registers[reg_src1] << registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_shr: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_dest = r2;
+			registers[reg_dest] = (registers[reg_src1] >> registers[reg_src2]);
+			
+			DISPATCH();
+		}
+		
+		lbl_je: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_true = r2;
+			uint8_t reg_false = r3;
+			if(static_cast<int32_t>(registers[reg_src1]) == static_cast<int32_t>(registers[reg_src2])){
+				instruction_ptr = registers[reg_true];
+			} else {
+				instruction_ptr = registers[reg_false];
+			}
+			
+			DISPATCH();
+		}
+		
+		lbl_jl: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_true = r2;
+			uint8_t reg_false = r3;
+			if(static_cast<int32_t>(registers[reg_src1]) < static_cast<int32_t>(registers[reg_src2])){
+				instruction_ptr = registers[reg_true];
+			} else {
+				instruction_ptr = registers[reg_false];
+			}
+			
+			DISPATCH();
+		}
+		
+		lbl_jg: {
+			uint8_t reg_src1 = r0;
+			uint8_t reg_src2 = r1;
+			uint8_t reg_true = r2;
+			uint8_t reg_false = r3;
+			if(static_cast<int32_t>(registers[reg_src1]) > static_cast<int32_t>(registers[reg_src2])){
+				instruction_ptr = registers[reg_true];
+			} else {
+				instruction_ptr = registers[reg_false];
+			}
+			
+			DISPATCH();
+		}
+		
+		lbl_nop: {
+			DISPATCH();
+		}
+		
+		lbl_push: {
+			uint8_t reg_data = r0;
+			if(stack_ptr >= 65536){
+				std::cerr << "STACK OVERFLOW: KILLING VM PROCESS\n";
+				regDump(opcode);
+				return;
+			}
+			stack[stack_ptr] = registers[reg_data];
+			stack_ptr++;
+			
+			DISPATCH();
+		}
+		
+		lbl_pop: {
+			uint8_t reg_dest = r0;
+			if(stack_ptr <= 0){
+				std::cerr << "STACK UNDERFLOW: KILLING VM PROCESS\n";
+				regDump(opcode);
+				return;
+			}
+			stack_ptr--;
+			registers[reg_dest] = stack[stack_ptr];
+			
+			DISPATCH();
+		}
+		
+		lbl_pushr: {
+			uint8_t reg_low = r0;
+			uint8_t reg_high = r1;
+			for(uint8_t i = reg_low; i <= reg_high; i++){
+				if(stack_ptr >= 65536){
+					std::cerr << "STACK OVERFLOW: KILLING VM PROCESS\n";
 					regDump(opcode);
 					return;
-				case OP_LOAD:{
-					uint8_t dest_reg = r0;
-					uint8_t ram_src = r1;
-					registers[dest_reg] = memory[registers[ram_src]];
-					break;
 				}
-				case OP_STORE:{
-					uint8_t reg_data = r0;
-					uint8_t ram_dest = r1;
-					memory[registers[ram_dest]] = registers[reg_data];
-					break;
-				}
-				case OP_ADD:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
-					registers[reg_dest] = (registers[reg_src1] + registers[reg_src2]);
-					break;
-				}
-				case OP_SUB:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
-					registers[reg_dest] = (registers[reg_src1] - registers[reg_src2]);
-					break;
-				}
-				case OP_NOT:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_dest = r1;
-					registers[reg_dest] = ~registers[reg_src1];
-					break;
-				}
-				case OP_AND:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
-					registers[reg_dest] = (registers[reg_src1] & registers[reg_src2]);
-					break;
-				}
-				case OP_OR:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
-					registers[reg_dest] = (registers[reg_src1] | registers[reg_src2]);
-					break;
-				}
-				case OP_XOR:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
-					registers[reg_dest] = (registers[reg_src1] ^ registers[reg_src2]);
-					break;
-				}
-				case OP_SHL:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
-					registers[reg_dest] = (registers[reg_src1] << registers[reg_src2]);
-					break;
-				}
-				case OP_SHR:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_dest = r2;
-					registers[reg_dest] = (registers[reg_src1] >> registers[reg_src2]);
-					break;
-				}
-				case OP_JE:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_true = r2;
-					uint8_t reg_false = r3;
-					if(static_cast<int32_t>(registers[reg_src1]) == static_cast<int32_t>(registers[reg_src2])){
-						instruction_ptr = registers[reg_true];
-					} else {
-						instruction_ptr = registers[reg_false];
-					}
-					break;
-				}
-				case OP_JL:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_true = r2;
-					uint8_t reg_false = r3;
-					if(static_cast<int32_t>(registers[reg_src1]) < static_cast<int32_t>(registers[reg_src2])){
-						instruction_ptr = registers[reg_true];
-					} else {
-						instruction_ptr = registers[reg_false];
-					}
-					break;
-				}
-				case OP_JG:{
-					uint8_t reg_src1 = r0;
-					uint8_t reg_src2 = r1;
-					uint8_t reg_true = r2;
-					uint8_t reg_false = r3;
-					if(static_cast<int32_t>(registers[reg_src1]) > static_cast<int32_t>(registers[reg_src2])){
-						instruction_ptr = registers[reg_true];
-					} else {
-						instruction_ptr = registers[reg_false];
-					}
-					break;
-				}
-				case OP_NOP:{
-					break;
-				}
-				case OP_PUSH:{
-					uint8_t reg_data = r0;
-					if(stack_ptr >= 65536){
-						std::cerr << "STACK OVERFLOW: KILLING VM PROCESS\n";
-						regDump(opcode);
-						return;
-					}
-					stack[stack_ptr] = registers[reg_data];
-					stack_ptr++;
-					break;
-				}
-				case OP_POP:{
-					uint8_t reg_dest = r0;
-					if(stack_ptr <= 0){
-						std::cerr << "STACK UNDERFLOW: KILLING VM PROCESS\n";
-						regDump(opcode);
-						return;
-					}
-					stack_ptr--;
-					registers[reg_dest] = stack[stack_ptr];
-					break;
-				}
-				case OP_PUSHR:{
-					uint8_t reg_low = r0;
-					uint8_t reg_high = r1;
-					for(uint8_t i = reg_low; i <= reg_high; i++){
-						if(stack_ptr >= 65536){
-							std::cerr << "STACK OVERFLOW: KILLING VM PROCESS\n";
-							regDump(opcode);
-							return;
-						}
-						stack[stack_ptr] = registers[i];
-						stack_ptr++;
-					}
-					break;
-				}
-				case OP_POPR:{
-					uint8_t reg_low = r0;
-					uint8_t reg_high = r1;
-					for(int32_t i = reg_high; i >= reg_low; i--){
-						if(stack_ptr <= 0){
-							std::cerr << "STACK UNDERFLOW: KILLING VM PROCESS\n";
-							regDump(opcode);
-							return;
-						}
-						stack_ptr--;
-						registers[i] = stack[stack_ptr];
-					}
-					break;
-				}
-				case OP_CALL:{
-					uint8_t reg_addr = r0;
-					if(stack_ptr >= 65536){
-						std::cerr << "STACK OVERFLOW: KILLING VM PROCESS\n";
-						regDump(opcode);
-						return;
-					}
-					stack[stack_ptr] = instruction_ptr;
-					stack_ptr++;
-					instruction_ptr = registers[reg_addr];
-					break;
-				}
-				case OP_RET:{
-					if(stack_ptr <= 0){
-						std::cerr << "STACK UNDERFLOW: KILLING VM PROCESS\n";
-						regDump(opcode);
-						return;
-					}
-					stack_ptr--;
-					instruction_ptr = stack[stack_ptr];
-					break;
-				}
-				case OP_GETPC:{
-					uint8_t reg_dest = r0;
-					registers[reg_dest] = instruction_ptr;
-					break;
-				}
-				case OP_OUT:{
-					uint8_t reg_data = r0;
-					uint8_t port = r1;
-					switch(registers[port]){
-						case 0:
-							std::cout << (char)registers[reg_data];
-							break;
-						case 1:
-							std::cout << (int)registers[reg_data];
-							break;
-						default:
-							break;
-							
-					}
-					break;
-				}
-				case OP_IN:{
-					uint8_t reg_dest = r0;
-					uint8_t port = r1;
-					switch(registers[port]){
-						case 0:
-							std::cin >> registers[reg_dest];
-							break;
-						case 1:
-							std::cin >> registers[reg_dest];
-							break;
-						default:
-							break;
-					}
-					break;
-				}
-				default:
-					break;
+				stack[stack_ptr] = registers[i];
+				stack_ptr++;
 			}
-			registers[0] = 0;
-			registers[1] = 1;
-			//regDump(opcode);
+			
+			DISPATCH();
 		}
+		
+		lbl_popr: {
+			uint8_t reg_low = r0;
+			uint8_t reg_high = r1;
+			for(int32_t i = reg_high; i >= reg_low; i--){
+				if(stack_ptr <= 0){
+					std::cerr << "STACK UNDERFLOW: KILLING VM PROCESS\n";
+					regDump(opcode);
+					return;
+				}
+				stack_ptr--;
+				registers[i] = stack[stack_ptr];
+			}
+			
+			DISPATCH();
+		}
+		
+		lbl_call: {
+			uint8_t reg_addr = r0;
+			if(stack_ptr >= 65536){
+				std::cerr << "STACK OVERFLOW: KILLING VM PROCESS\n";
+				regDump(opcode);
+				return;
+			}
+			stack[stack_ptr] = instruction_ptr;
+			stack_ptr++;
+			instruction_ptr = registers[reg_addr];
+			
+			DISPATCH();
+		}
+		
+		lbl_ret: {
+			if(stack_ptr <= 0){
+				std::cerr << "STACK UNDERFLOW: KILLING VM PROCESS\n";
+				regDump(opcode);
+				return;
+			}
+			stack_ptr--;
+			instruction_ptr = stack[stack_ptr];
+			
+			DISPATCH();
+		}
+		
+		lbl_getpc: {
+			uint8_t reg_dest = r0;
+			registers[reg_dest] = instruction_ptr;
+			
+			DISPATCH();
+		}
+		
+		lbl_out: {
+			uint8_t reg_data = r0;
+			uint8_t port = r1;
+			switch(registers[port]){
+				case 0:
+					std::cout << (char)registers[reg_data];
+					DISPATCH();
+				case 1:
+					std::cout << (int)registers[reg_data];
+					DISPATCH();
+				default:
+					DISPATCH();
+					
+			}
+		}
+		
+		lbl_in: {
+			uint8_t reg_data = r0;
+			uint8_t port = r1;
+			switch(registers[port]){
+				case 0:
+					std::cin >> registers[reg_data];
+					DISPATCH();
+				case 1:
+					std::cin >> registers[reg_data];
+					DISPATCH();
+				default:
+					DISPATCH();
+					
+			}
+		}
+		
+		lbl_halt:
+			regDump(OP_HALT);
+			return;
+		#undef DISPATCH
 	}
 };
 int main() {
     quad32VM vm;
 
     uint32_t bytecode[ARRAY_SIZE];
-
 
     std::cout << "Booting Virtual Silicon..." << std::endl;
     vm.Run(bytecode);
