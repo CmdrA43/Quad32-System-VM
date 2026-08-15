@@ -3,7 +3,7 @@ Quad32-System-VM is a lightweight 32 bit VM with a unique instruction format tha
 
 *PSST, hey you, want to get in the weeds of this VM? Go check out the [Github disscussions](https://github.com/CmdrA43/Quad32-System-VM/discussions), because I don't feel like checking anywhere else.*
 
-Build with: `g++ -Wall -march=native -o3 main.cpp -o quad32_vm` to ensure the SIMD definitions for vector ops
+Build with standard CMake calls `cmake -S . -B build` and `cmake --build build` after cloning into the repo 
 
 ## Architecture
 The architecture of this VM is a simple RISC like ISA, with a 12-bit opcode space, and 4 full 5-bit register options, for advanced operations inside a 32-bit environment. Memory is stored in a 65536 long 32-bit word array alongside a dedicated stack, also 32-bit word and 65536 words long.\
