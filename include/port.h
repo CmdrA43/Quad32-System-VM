@@ -15,7 +15,7 @@ struct IOPort {
 	int tx_write = 0;
 	int tx_count = 0;
 	
-	std::function<void(uint32_t)> tickToHardware = nullptr;
+	std::function<bool(uint32_t)> tickToHardware = nullptr;
 	std::function<bool(uint32_t&)> tickFromHardware = nullptr;
 	
 	void pushFromHost(uint32_t value){
@@ -40,10 +40,10 @@ struct IOPort {
 	void tick(){
 		if(tx_count > 0 && tickToHardware){
 			uint32_t value = tx_queue[tx_read];
-			tx_read = (tx_read + 1) & 255;
-			tx_count--;
-			
-			tickToHardware(value);
+			if(tickToHardware(value)){
+				tx_read = (tx_read + 1) & 255;
+				tx_count--;
+			}
 		}
 		
 		if(rx_count < 256 && tickFromHardware){

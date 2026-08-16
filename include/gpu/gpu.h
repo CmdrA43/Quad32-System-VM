@@ -48,11 +48,11 @@ struct GPU{
 	
 	IOPort commandQueue;
 	
-	GPU(int tilesize, int numSprites, int numTiles, vector<int> mapS) : tileSize(tilesize), mapSize(mapS) {
+	GPU(int tilesize, int numSprites, int numFrames, int numTiles, vector<int> mapS) : tileSize(tilesize), mapSize(mapS) {
 		sprites.resize(numSprites);
 		tilemap.resize(mapSize.x * mapSize.y);
 		tilePalette.resize(numTiles * tileSize * tileSize);
-		spritePalette.resize(numSprites * tileSize * tileSize);
+		spritePalette.resize(numFrames * tileSize * tileSize);
 		screen.resize(screenSize.y * screenSize.x);
 	}
 	
@@ -98,10 +98,45 @@ struct GPU{
 		}
 	}
 	
+	void drawSprite(sprite& Sprite, vector<int> pixelPos){
+		std::span<const uint8_t> spriteData = fetchSpriteFrame(Sprite);
+		
+		auto pixel = spriteData.begin();
+		
+		for(int y = 0; y < tileSize; y++){
+			int screenY = pixelPos.y + y;
+			if(screenY < 0 || screenY > screenSize.y) continue;
+			for(int x = 0; x < tileSize; x++){
+				int screenX = pixelPos.x + x;
+				if(screenX < 0 || screenX > screenSize.x) continue;
+				uint8_t colorIndex = *pixel;
+				pixel++;
+				
+				uint32_t color = colorPalette[colorIndex];
+				
+				screen[(screenY * screenSize.x) + screenX] = color;
+			}
+		}
+	}
+	
+	void drawSprites(){
+		vector<float> lowViewBound = vector<float>{camPos.x - ((float)screenSize.x / (float)tileSize), camPos.y - ((float)screenSize.y / (float)tileSize)};
+		vector<float> highViewBound = vector<float>{camPos.x + ((float)screenSize.x / (float)tileSize), camPos.y + ((float)screenSize.y / (float)tileSize)};
+		
+		for(int i = 0; i < sprites.size(); ++i){
+			if(sprites[i].position.x > lowViewBound.x - 1 && sprites[i].position.y > lowViewBound.y - 1 && sprites[i].position.x < highViewBound.x && sprites[i].position.y < highViewBound.y){
+				vector<float> relativePos = vector<float>{-(camPos.x - sprites[i].position.x), -(camPos.x - sprites[i].position.x)};
+				vector<int> screenPos = vector<int>{(int)(relativePos.x * tileSize) + (screenSize.x / 2), (int)(relativePos.y * tileSize) + (screenSize.y / 2)};
+				drawSprite(sprites[i], screenPos);
+			}
+		}
+	}
+	
 	void processCommand(GPUCmd instruction){
 		switch(instruction) {
 			case DRAW_FRAME:
 				drawTiles();
+				drawSprites();
 				break;
 				
 			case SET_SPRITE: {
@@ -143,10 +178,12 @@ struct GPU{
 	
 	void Run(){
 		uint32_t cmd;
-		commandQueue.pollToHost(cmd);
+		bool isCmd;
 		do {
-			processCommand(static_cast<GPUCmd>(cmd));
-		} while (commandQueue.pollToHost(cmd) != HALT);
+			commandQueue.tick();
+			isCmd = commandQueue.pollToHost(cmd);
+			if(isCmd) processCommand(static_cast<GPUCmd>(cmd));
+		} while (cmd != HALT);
 	}
 };
 
