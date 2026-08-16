@@ -4,7 +4,7 @@
 #include <thread>
 
 std::atomic<uint32_t> GPULane;
-std::atomic<bool> dataReady;
+std::atomic<bool> dataReady (false);
 
 void gpuThread(){
 	GPU gpu(16, 16, 512, 256, vector<int>{512, 512});
@@ -32,9 +32,12 @@ int main() {
 		dataReady = true;
 		return true;
 	});
-
+	
+	std::thread GPUThread = std::thread(gpuThread);
+	
     std::cout << "Booting Virtual Silicon..." << std::endl;
     vm.Run(bytecode);
+    GPUThread.join();
     std::cout << "Execution Halted Successfully." << std::endl;
 
     return 0;
