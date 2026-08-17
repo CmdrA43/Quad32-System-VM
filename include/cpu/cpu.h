@@ -107,7 +107,8 @@ enum regCallConv : uint8_t{
 };
 
 enum portMap : uint32_t {
-	GPUPort = 0x00000000
+	GPUPort = 0x00000000,
+	SDL = 0x00000001
 };
 
 struct quad32VM{
@@ -142,7 +143,7 @@ struct quad32VM{
 	 * R0 is dedicated zero value
 	 * R1 is dedicated one value
 	 * */
-	void Run(uint32_t (&bytecode)[ARRAY_SIZE]){
+	void Run(uint32_t bytecode[ARRAY_SIZE]){
 		registers[0] = 0;
 		registers[1] = 1;
 		static const void* dispatch_table[] = {
